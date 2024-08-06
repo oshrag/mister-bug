@@ -1,6 +1,7 @@
 
 import { bugService } from "./bug.service.js"
 import { authService } from "../auth/auth.service.js"
+import { loggerService } from "../../services/logger.service.js";
 
 
 
@@ -78,10 +79,10 @@ export async function removeBug(req, res) {
 
 export async function addBug(req, res) {
 
-
-    // const loggedinUser = authService.validateToken(req.cookies.loginToken)
+    
+    const loggedinUser = authService.validateToken(req.cookies.loginToken)
 	// if (!loggedinUser) return res.status(401).send('Login first')
-
+   
 
     const { title, severity, description } = req.body
     const bugToSave = { title, severity: +severity, description, createdAt: Date.now() }

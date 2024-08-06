@@ -5,5 +5,11 @@
         "fullname": "kinneret",
         "_id": "uE9GsS",
         "isAdmin": true
+    },
+    {
+        "username": "oshra",
+        "password": "$2b$10$V7zF2/MIHTs/GhOwGnHRcO2o2Gh5gbN6dYRofvPgY0QLnRVrCUPwi",
+        "fullname": "oshra",
+        "_id": "ZHn10p"
     }
 ]
