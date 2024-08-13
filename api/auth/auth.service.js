@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 import { userService } from '../user/user.service.js'
 import { loggerService } from '../../services/logger.service.js'
 
-const cryptr = new Cryptr(process.env.SECRET1 || 'Secret-toyota-82688503')
+const cryptr = new Cryptr(process.env.SECRET1 || 'Secret-toyota-8052981')
 
 export const authService = {
     getLoginToken,
