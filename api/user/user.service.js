@@ -1,98 +1,134 @@
-import fs from "fs";
-
-import { loggerService } from "../../services/logger.service.js";
-import { makeId, readJsonFile } from "../../services/util.service.js";
-
-
-const users = readJsonFile('data/users.json')
-const PAGE_SIZE = 3
-
+import {dbService} from '../../services/db.service.js'
+import {loggerService} from '../../services/logger.service.js'
+import {msgService} from '../msg/msg.service.js'
+import { ObjectId } from 'mongodb'
 
 export const userService = {
-    query,
-    save,
-    getById,
-    remove,
-    getByUsername
+	add, // Create (Signup)
+	getById, // Read (Profile page)
+	update, // Update (Edit profile)
+	remove, // Delete (remove user)
+	query, // List (of users)
+	getByUsername, // Used for Login
 }
 
+async function query(filterBy = {}) {
+    const criteria = _buildCriteria(filterBy)
 
-async function query() {
-    let usersToDisplay = users
     try {
-        return usersToDisplay
+        const collection = await dbService.getCollection('user')
+        var users = await collection.find(criteria).toArray()
+        users = users.map(user => {
+            delete user.password
+            user.createdAt = user._id.getTimestamp()
+            // Returning fake fresh data
+            // user.createdAt = Date.now() - (1000 * 60 * 60 * 24 * 3) // 3 days ago
+            return user
+        })
+        console.log(users)
+        return users
     } catch (err) {
-        loggerService.error(`Couldn't get users`, err);
+        loggerService.error('cannot find users', err)
         throw err
     }
 }
-
-
 
 async function getById(userId) {
     try {
-        const user  = users.find(user => user._id === userId)
-        if (!user) throw `Couldn't find user with _id ${userId}`
+        var criteria = { _id: ObjectId.createFromHexString(userId) }
+
+        const collection = await dbService.getCollection('user')
+        const user = await collection.findOne(criteria)
+        delete user.password
+
+        criteria = { byUserId: userId }
+
+        user.givenMsgs = await msgService.query(criteria)
+        user.givenMsgs = user.givenMsgs.map(msg => {
+            delete msg.byUser
+            return msg
+        })
+
         return user
     } catch (err) {
-        loggerService.error(`Couldn't get user`, err);
+        loggerService.error(`while finding user by id: ${userId}`, err)
         throw err
     }
 }
 
-
+async function getByUsername(username) {
+	try {
+		const collection = await dbService.getCollection('user')
+		const user = await collection.findOne({ username })
+		return user
+	} catch (err) {
+		loggerService.error(`while finding user by username: ${username}`, err)
+		throw err
+	}
+}
 
 async function remove(userId) {
     try {
-        const userIdx = users.findIndex(user => user._id === userId)
-        if (userIdx === -1) throw `Couldn't remove user with _id ${userId}`
-        users.splice(userIdx, 1)
-        return _saveUsersToFile()
+        const criteria = { _id: ObjectId.createFromHexString(userId) }
+
+        const collection = await dbService.getCollection('user')
+        await collection.deleteOne(criteria)
     } catch (err) {
-        loggerService.error(`Couldn't get user`, err);
+        loggerService.error(`cannot remove user ${userId}`, err)
         throw err
     }
 }
 
-
-async function save(userToSave) {
+async function update(user) {
     try {
-        if (userToSave._id) {
-            const idx = users.findIndex(user => user._id === userToSave._id)
-            if (idx === -1) throw `Couldn't update user with _id ${userToSave._id}`
-            users[idx] = userToSave
-        } else {
-            userToSave._id = makeId()
-            users.push(userToSave)
-           
+        // peek only updatable properties
+        const userToSave = {
+            _id: ObjectId.createFromHexString(user._id), // needed for the returnd obj
+            fullname: user.fullname,
+            score: user.score,
         }
-        await _saveUsersToFile()
+        const collection = await dbService.getCollection('user')
+        await collection.updateOne({ _id: userToSave._id }, { $set: userToSave })
         return userToSave
     } catch (err) {
-        loggerService.error(`Couldn't get user`, err);
+        loggerService.error(`cannot update user ${user._id}`, err)
         throw err
     }
 }
 
-
-function _saveUsersToFile(path = './data/users.json') {
-    return new Promise((resolve, reject) => {
-        const data = JSON.stringify(users, null, 4)
-        fs.writeFile(path, data, (err) => {
-            if (err) return reject(err)
-            resolve()
-        })
-    })
+async function add(user) {
+	try {
+		// peek only updatable fields!
+		const userToAdd = {
+			username: user.username,
+			password: user.password,
+			fullname: user.fullname,
+			imgUrl: user.imgUrl,
+			isAdmin: user.isAdmin,
+			score: 100,
+		}
+		const collection = await dbService.getCollection('user')
+		await collection.insertOne(userToAdd)
+		return userToAdd
+	} catch (err) {
+		loggerService.error('cannot add user', err)
+		throw err
+	}
 }
 
-
-async function getByUsername(username) {
-    try {
-        const user = users.find(user => user.username === username)
-        // if (!user) throw `User not found by username : ${username}`
-        return user
-    } catch (err) {
-        loggerService.error('userService[getByUsername] : ', err)
-        throw err
-    }
+function _buildCriteria(filterBy) {
+	const criteria = {}
+	// if (filterBy.txt) {
+	// 	const txtCriteria = { $regex: filterBy.txt, $options: 'i' }
+	// 	criteria.$or = [
+	// 		{
+	// 			username: txtCriteria,
+	// 		},
+	// 		{
+	// 			fullname: txtCriteria,
+	// 		},
+	// 	]
+	// }
+	
+	return criteria
 }

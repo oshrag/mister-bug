@@ -6,8 +6,19 @@ import { loggerService } from "../../services/logger.service.js";
 
 
 export async function getBugs(req, res){
-    const { pageIdx, txt, severity, labels, sortBy, sortDir , owner} = req.query
-    const filterBy = { pageIdx, txt, severity: +severity, labels, sortBy, sortDir , owner }
+
+    // const { pageIdx, txt, severity, labels, sortBy, sortDir , owner} = req.query
+    // const filterBy = { pageIdx, txt, severity: +severity, labels, sortBy, sortDir , owner }
+
+    const filterBy = {
+        txt: req.query.txt || '',
+        severity: +req.query.severity || 0,
+        sortField: req.query.sortField || '',
+        sortDir: req.query.sortDir || 1,
+        pageIdx: req.query.pageIdx,
+    }
+
+   
     try {
         const bugs = await bugService.query(filterBy)
         res.send(bugs)
@@ -68,7 +79,7 @@ export async function removeBug(req, res) {
 
     const { bugId } = req.params
     try {
-        await bugService.remove(bugId, loggedinUser)
+        await bugService.remove(bugId)
         res.send('Bug Deleted')
     } catch (err) {
         console.log('err:', err)
@@ -85,9 +96,9 @@ export async function addBug(req, res) {
    
 
     const { title, severity, description } = req.body
-    const bugToSave = { title, severity: +severity, description, createdAt: Date.now() }
+    const bugToSave = { title, severity: +severity, description, owner: loggedinUser  }
     try {
-        const savedBug = await bugService.save(bugToSave, loggedinUser)
+        const savedBug = await bugService.add(bugToSave)
         res.send(savedBug)
     } catch (err) {
         console.log('err:', err)
@@ -102,17 +113,39 @@ export async function updateBug(req, res) {
 	// if (!loggedinUser) return res.status(401).send('Login first')
 
 
-    const { _id, title, severity, description } = req.body
-    const bug = await bugService.getById(_id) //for a case client didnt send all fields
-    const bugToSave = { _id, title, severity: +severity, description, createdAt: bug.createdAt, owner: bug.owner }
 
-    
-    
-    try {
-        const savedBug = await bugService.save(bugToSave, loggedinUser)
-        res.send(savedBug)
-    } catch (err) {
-        console.log('err:', err)
-        res.status(400).send(`Couldn't save bug`)
+
+
+
+    // const { _id, title, severity, description } = req.body
+    // const bug = await bugService.getById(_id) //for a case client didnt send all fields
+    // const bugToSave = { _id, title, severity: +severity, description, createdAt: bug.createdAt, owner: bug.owner }
+
+    // try {
+    //     const savedBug = await bugService.save(bugToSave, loggedinUser)
+    //     res.send(savedBug)
+    // } catch (err) {
+    //     console.log('err:', err)
+    //     res.status(400).send(`Couldn't save bug`)
+    // }
+
+
+
+    const { loggedinUser, body: bug } = req
+    const { _id: userId, isAdmin } = loggedinUser
+
+    if(!isAdmin && bug.owner._id !== userId) {
+        res.status(403).send('Not your bug...')
+        return
     }
+
+	try {
+		const updatedBug = await bugService.update(bug)
+		res.json(updatedBug)
+	} catch (err) {
+		logger.error('Failed to update bug', err)
+		res.status(400).send({ err: 'Failed to update bug' })
+	}
+
+
 }

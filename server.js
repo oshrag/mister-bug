@@ -1,13 +1,72 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+// import { MongoClient } from 'mongodb'
+import { bugService } from './api/bug/bug.service.js'
 
-// import { bugService } from './services/bug.service.js'
+
 import { loggerService } from './services/logger.service.js'
 import { bugRoutes } from './api/bug/bug.routes.js'
+import { msgRoutes } from './api/msg/msg.routes.js'
 import { userRoutes } from './api/user/user.routes.js'
 import { authRoutes } from './api/auth/auth.routes.js'
 
+import { setupAsyncLocalStorage } from './middlewares/setupAls.middleware.js'
+
+
+
+// Connection URL
+const url = 'mongodb://localhost:27017'
+
+// Database Name
+const dbName = 'bugs'
+
+//tryMongo()
+//helloMongo()
+
+// async function tryMongo() {
+
+//     console.log('Connecting')
+//     const connection = await MongoClient.connect(url)
+    
+//     console.log('Connected. Getting DB')
+//     const db = connection.db(dbName)
+
+//     console.log('Getting Collection')
+//     const collection = db.collection('bug')
+
+//     console.log('Fetching Docs.')
+//     const docs = await collection.find({ severity : 3 }).toArray()    
+
+//     console.log(`Docs:\n`, docs)
+//     connection.close()
+// }
+
+// async function helloMongo() {
+
+
+//     //const filterBy = { severity : 100}
+//     //const filterBy = { txt : 'problem'}
+    
+
+//     // var bugs = await bugService.query(filterBy)
+//     // console.log('Got Bugs: ', bugs)
+
+//     // var bug = await bugService.getById('66bba951d74a4a68c5f32f03')
+//     // console.log('Got Bug: ', bug)
+
+//     // bug.severity += 100 // { severity: 103 }
+//     // var updatedBug = await bugService.update(bug)
+//     // console.log('Updated Bug: ', updatedBug)
+
+//     // const newBug = { title: 'trible bug', severity: 220 }
+
+//     // var addedBug = await bugService.add(newBug)
+//     // console.log('Added Bug: ', addedBug)
+
+//     // const { deletedCount } = await bugService.remove('66bbc0be947dd17c6f83503b')
+//     // console.log('Bug Removed?', deletedCount)
+// }
 
 
 const app = express() 
@@ -28,9 +87,12 @@ app.use(express.static('public'))
 app.use(cookieParser())
 app.use(express.json())
 
+app.all('*', setupAsyncLocalStorage)
+
 //* Routes
 app.use('/api/bug', bugRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/msg', msgRoutes)
 app.use('/api/auth', authRoutes)
 
 
