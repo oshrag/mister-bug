@@ -4,9 +4,6 @@ import { asyncLocalStorage } from '../../services/als.service.js'
 import { loggerService } from "../../services/logger.service.js";
 
 
-
-
-
 export const msgService = {
     query,
     getById,
@@ -26,35 +23,36 @@ async function query(filterBy = { txt: '' }) {
 		// if (filterBy.pageIdx !== undefined) {
 		// 	bugCursor.skip(filterBy.pageIdx * PAGE_SIZE).limit(PAGE_SIZE)
 		// }
+        const pipeline = await buildAggregate(criteria);
+        var msgs = await collection.aggregate(pipeline).toArray();
 
-
-        var msgs = await collection.aggregate([
-            {
-                $match: criteria,
-            },
-            {
-                $lookup: {
-                    localField: 'aboutBugId',
-                    from: 'bug',
-                    foreignField: '_id',
-                    as: 'aboutBug',
-                },
-            },
-            {
-                $unwind: '$aboutBug',
-            },
-            {
-                $lookup: {
-                    localField: 'byUserId',
-                    from: 'user',
-                    foreignField: '_id',
-                    as: 'byUser',
-                },
-            },
-            {
-                $unwind: '$byUser',
-            },
-        ]).toArray()
+        // var msgs = await collection.aggregate([
+        //     {
+        //         $match: criteria,
+        //     },
+        //     {
+        //         $lookup: {
+        //             localField: 'aboutBugId',
+        //             from: 'bug',
+        //             foreignField: '_id',
+        //             as: 'aboutBug',
+        //         },
+        //     },
+        //     {
+        //         $unwind: '$aboutBug',
+        //     },
+        //     {
+        //         $lookup: {
+        //             localField: 'byUserId',
+        //             from: 'user',
+        //             foreignField: '_id',
+        //             as: 'byUser',
+        //         },
+        //     },
+        //     {
+        //         $unwind: '$byUser',
+        //     },
+        // ]).toArray()
 
 
 
@@ -88,8 +86,24 @@ async function getById(msgId) {
         const criteria = { _id: ObjectId.createFromHexString(msgId) }
 
 		const collection = await dbService.getCollection('msg')
-		const msg = await collection.findOne(criteria)
-        
+		//const msg = await collection.findOne(criteria)
+        const pipeline = await buildAggregate(criteria);
+        const msgs = await collection.aggregate(pipeline).toArray();
+
+        var msg = msgs.shift() // מחזיר את המסמך היחיד ומסיר אותו מהמערך
+        msg.aboutBug = {
+            _id: msg.aboutBug._id,
+            title: msg.aboutBug.title
+        }
+        msg.byUser = {
+            _id: msg.byUser._id,
+            fullname: msg.byUser.fullname
+        }
+        delete msg.aboutBugId
+        delete msg.byUserId
+
+       
+
 		// bug.createdAt = bug._id.getTimestamp()
 		return msg
 	} catch (err) {
@@ -148,17 +162,59 @@ async function update(msg) {
 
 async function add(msg) {
     try {
+        const collection = await dbService.getCollection('msg');
+        const result = await collection.insertOne(msg);
+        
+        const criteria =  { _id: result.insertedId }
+        const pipeline = await buildAggregate(criteria);
+        const addedMsg = await collection.aggregate(pipeline).toArray();
 
-        const collection = await dbService.getCollection('msg')
-        await collection.insertOne(msg)
+        
+        var msg = addedMsg.shift() // מחזיר את המסמך היחיד ומסיר אותו מהמערך
+        msg.aboutBug = {
+            _id: msg.aboutBug._id,
+            title: msg.aboutBug.title
+        }
+        msg.byUser = {
+            _id: msg.byUser._id,
+            fullname: msg.byUser.fullname
+        }
+        delete msg.aboutBugId
+        delete msg.byUserId
 
-        return msg
+
+
+        return msg;
     } catch (err) {
-        console.log(`ERROR: cannot insert msg`)
-        throw err
+        console.log(`ERROR: cannot insert msg`, err);
+        throw err;
     }
 }
 
+
+async function buildAggregate(criteria) {
+    return [
+        { $match: criteria },
+        {
+            $lookup: {
+                localField: 'aboutBugId',
+                from: 'bug',
+                foreignField: '_id',
+                as: 'aboutBug',
+            },
+        },
+        { $unwind: '$aboutBug' },
+        {
+            $lookup: {
+                localField: 'byUserId',
+                from: 'user',
+                foreignField: '_id',
+                as: 'byUser',
+            },
+        },
+        { $unwind: '$byUser' },
+    ];
+}
 
 function _buildCriteria(filterBy) {
 

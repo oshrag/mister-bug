@@ -149,3 +149,34 @@ export async function updateBug(req, res) {
 
 
 }
+
+
+
+export async function addBugMsg(req, res) {
+	const { loggedinUser } = req
+
+	try {
+		const bugId = req.params.id
+		const msg = {
+			txt: req.body.txt,
+			by: loggedinUser,
+		}
+		const savedMsg = await bugService.addBugMsg(bugId, msg)
+		res.json(savedMsg)
+	} catch (err) {
+		logger.error('Failed to update bug', err)
+		res.status(400).send({ err: 'Failed to update bug' })
+	}
+}
+
+export async function removeBugMsg(req, res) {
+	try {
+		const { id: bugId, msgId } = req.params
+
+		const removedId = await bugService.removeBugMsg(bugId, msgId)
+		res.send(removedId)
+	} catch (err) {
+		logger.error('Failed to remove bug msg', err)
+		res.status(400).send({ err: 'Failed to remove bug msg' })
+	}
+}

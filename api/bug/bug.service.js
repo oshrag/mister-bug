@@ -14,7 +14,9 @@ export const bugService = {
     getById,
     remove,
     update,
-    add
+    add,
+    addbugMsg,
+    removeBugMsg
 }
 
 async function query(filterBy = { txt: '' }) {
@@ -103,6 +105,40 @@ async function add(bug) {
     }
 }
 
+
+
+
+
+
+
+async function addbugMsg(bugId, msg) {
+	try {
+        const criteria = { _id: ObjectId.createFromHexString(bugId) }
+        msg.id = makeId()
+        
+		const collection = await dbService.getCollection('bug')
+		await collection.updateOne(criteria, { $push: { msgs: msg } })
+
+		return msg
+	} catch (err) {
+		logger.error(`cannot add bug msg ${bugId}`, err)
+		throw err
+	}
+}
+
+async function removeBugMsg(bugId, msgId) {
+	try {
+        const criteria = { _id: ObjectId.createFromHexString(bugId) }
+
+		const collection = await dbService.getCollection('bug')
+		await collection.updateOne(criteria, { $pull: { msgs: { id: msgId }}})
+        
+		return msgId
+	} catch (err) {
+		logger.error(`cannot add bug msg ${bugId}`, err)
+		throw err
+	}
+}
 
 function _buildCriteria(filterBy) {
 
